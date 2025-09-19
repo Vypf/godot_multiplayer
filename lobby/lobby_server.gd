@@ -59,7 +59,7 @@ func _find_free_port_in_range(min_port: int, max_port: int) -> int:
 
 
 func _generate_code(banned_codes: Array[String], length: int = 6) -> String:
-	var chars := "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	var chars := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
 
@@ -109,8 +109,8 @@ func create(port):
 	_logger.info("create on port " + str(port), "create")
 	_server = WebSocketServer.new()
 
-	_server.client_connected.connect(_on_lobby_connected)
-	_server.client_disconnected.connect(_on_lobby_disconnected)
+	_server.client_connected.connect(_on_client_connected)
+	_server.client_disconnected.connect(_on_client_disconnected)
 	_server.message_received.connect(_on_server_message_received)
 
 	var error = _server.listen(port)
@@ -205,13 +205,13 @@ func _create_lobby():
 	return code
 
 
-func _on_lobby_connected(id):
-	_logger.info("peer connected " + str(id), "_on_lobby_connected")
+func _on_client_connected(id):
+	_logger.info("peer connected " + str(id), "_on_client_connected")
 	_server.send(id, JSON.stringify({"type": "lobbies_updated", "data": lobbies}))
 
 
-func _on_lobby_disconnected(id):
-	_logger.info("peer disconnected " + str(id), "_on_lobby_disconnected")
+func _on_client_disconnected(id):
+	_logger.info("peer disconnected " + str(id), "_on_client_disconnected")
 	if lobbies.has(id):
 		lobbies.erase(id)
 		_server.send(0, JSON.stringify({"type": "lobby_disconnected", "data": id}))
