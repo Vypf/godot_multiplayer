@@ -1,7 +1,7 @@
 @tool
 extends EditorPlugin
 
-const ROOT := "res://addons/godot-multiplayer"
+const ROOT := "res://addons/godot_multiplayer"
 const TYPES: Array[Dictionary] = [
 	{
 		"name": "LobbyClient",
