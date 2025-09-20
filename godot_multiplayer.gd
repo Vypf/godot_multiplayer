@@ -6,13 +6,13 @@ const TYPES: Array[Dictionary] = [
 	{
 		"name": "LobbyClient",
 		"base": "Node",
-		"script": ROOT + "/lobby/lobby_client.gd",
+		"script": ROOT + "/lobby/LobbyClient.gd",
 		"icon": ROOT + "/icon.svg"
 	},
 	{
 		"name": "LobbyServer",
 		"base": "Node",
-		"script": ROOT + "/lobby/lobby_server.gd",
+		"script": ROOT + "/lobby/LobbyServer.gd",
 		"icon": ROOT + "/icon.svg"
 	},
 	{
