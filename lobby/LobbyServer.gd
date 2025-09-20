@@ -1,4 +1,5 @@
-class_name LobbyServer extends Node
+extends Node
+class_name LobbyServer
 
 # Autoload named Lobby
 const DEFAULT_SERVER_IP = "127.0.0.1"  # IPv4 localhost

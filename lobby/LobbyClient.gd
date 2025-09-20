@@ -1,4 +1,5 @@
-class_name LobbyClient extends Node
+extends Node
+class_name LobbyClient
 
 # These signals can be connected to by a UI lobby scene or the game scene.
 signal lobby_connected(peer_id, lobby_info)

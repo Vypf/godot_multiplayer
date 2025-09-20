@@ -1,4 +1,5 @@
-class_name GameInstance extends Node
+extends Node
+class_name GameInstance
 
 signal code_received(code: String)
 signal player_joined(peer_id)
