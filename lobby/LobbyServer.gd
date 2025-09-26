@@ -22,14 +22,29 @@ var _server: WebSocketServer
 # Folder in which logs will be stored
 var _log_folder: String
 # Paths of available games
-var _paths: Dictionary
+var _paths: Dictionary:
+	set(value):
+		print(value.values())
+		for path in value.values():
+			if not (FileAccess.file_exists(path) or DirAccess.dir_exists_absolute(path)):
+				push_error(path + ' does not exist.')
+		_paths = value
+		
+var _executable_paths: Dictionary:
+	set(value):
+		print(value.values())
+		for path in value.values():
+			if not (FileAccess.file_exists(path) or DirAccess.dir_exists_absolute(path)):
+				push_error(path + ' does not exist.')
+		_executable_paths = value
 # Environnement it determines how a lobby should be created
 var _environment: String
 
 
-func _init(paths: Dictionary = {}, log_folder: String = "", environment: String = "development"):
+func _init(paths: Dictionary = {}, executable_paths: Dictionary = {}, log_folder: String = "", environment: String = "development"):
 	_log_folder = log_folder
 	_paths = paths
+	_executable_paths = executable_paths
 	_environment = environment
 	_logger = CustomLogger.new("LobbyServer")
 
@@ -181,7 +196,8 @@ func _get_log_path(code: String) -> String:
 		if not DirAccess.dir_exists_absolute(log_folder):
 			var error = DirAccess.make_dir_absolute(log_folder)
 			if error:
-				_logger.error("Can't create logs folder " + log_folder, "_create_lobby")
+				_logger.error(str(error) + ": Can't create logs folder " + log_folder, "_create_lobby")
+				return ""
 		return _join_path([log_folder, code + ".log"])
 	return ""
 
@@ -191,6 +207,13 @@ func _get_root(game) -> String:
 		_paths[game]
 		if not _paths.is_empty() and _paths.has(game)
 		else ProjectSettings.globalize_path("res://")
+	)
+
+func _get_executable_path(game) -> String:
+	return (
+		_executable_paths[game]
+		if not _executable_paths.is_empty() and _executable_paths.has(game)
+		else OS.get_executable_path()
 	)
 
 
@@ -206,7 +229,7 @@ func _get_args(code: String, port: int) -> PackedStringArray:
 	)
 
 
-func _add_log_path_to_args(log_path, args) -> void:
+func _add_log_path_to_args(log_path, args) -> PackedStringArray:
 	if not log_path.is_empty():
 		args = (
 			args
@@ -217,9 +240,10 @@ func _add_log_path_to_args(log_path, args) -> void:
 				]
 			)
 		)
+	return args
 
 
-func _add_root_to_args(root, args) -> void:
+func _add_root_to_args(root, args) -> PackedStringArray:
 	if not root.is_empty():
 		args = (
 			args
@@ -230,6 +254,7 @@ func _add_root_to_args(root, args) -> void:
 				]
 			)
 		)
+	return args
 
 
 func _create_lobby(game: String):
@@ -239,16 +264,18 @@ func _create_lobby(game: String):
 	var root := _get_root(game)
 	var log_path := _get_log_path(code)
 	var args := _get_args(code, port)
+	var executable_path := _get_executable_path(game)
 
-	_add_log_path_to_args(log_path, args)
+	args = _add_log_path_to_args(log_path, args)
 
 	if _environment == "production":
 		_logger.debug("Args: " + str(args), "_create_lobby")
 		OS.create_process(root, args)
 	else:
-		_add_root_to_args(root, args)
+		args = _add_root_to_args(root, args)
 		_logger.debug("Args: " + str(args), "_create_lobby")
-		OS.create_instance(args)
+		var pId = OS.create_process(executable_path, args)
+		print(str(pId) + ": " + str(OS.is_process_running(pId)))
 	return code
 
 
