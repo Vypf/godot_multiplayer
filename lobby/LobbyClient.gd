@@ -9,8 +9,16 @@ signal lobby_created(code)
 
 const DEFAULT_SERVER_IP = "127.0.0.1"  # IPv4 localhost
 
-var lobbies = {}
-var lobby_info = {}
+var lobbies: Dictionary = {}
+
+@export var game: String
+var lobby_info: Dictionary = {}:
+	set(value):
+		if not value.is_empty():
+			lobby_info.port = value.port
+			lobby_info.code = value.code
+			lobby_info.pId = value.pId
+			lobby_info.game = game
 
 var is_lobby: bool:
 	get:
@@ -26,7 +34,7 @@ func _init():
 
 func create():
 	if _client:
-		_client.send(JSON.stringify({"type": "create_lobby"}))
+		_client.send(JSON.stringify({"type": "create_lobby", "data": {"game": game}}))
 
 
 func stop():
@@ -66,6 +74,8 @@ func _on_connected_ok():
 	_logger.info("✅ Client connected to server", "_on_connected_ok")
 	if is_lobby:
 		_client.send(JSON.stringify({"type": "register_lobby", "data": lobby_info}))
+	else:
+		_client.send(JSON.stringify({"type": "register_client", "data": {"game": game}}))
 
 
 func _on_server_disconnected():
