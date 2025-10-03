@@ -2,8 +2,8 @@ extends Node
 class_name LobbyClient
 
 # These signals can be connected to by a UI lobby scene or the game scene.
-signal lobby_connected(peer_id: int, lobby_info: Dictionary)
-signal lobby_disconnected(peer_id: int)
+signal lobby_connected(peer_id: String, lobby_info: Dictionary)
+signal lobby_disconnected(peer_id: String)
 signal server_disconnected
 signal lobby_created(code: String)
 
