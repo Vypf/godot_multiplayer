@@ -2,10 +2,10 @@ extends Node
 class_name LobbyClient
 
 # These signals can be connected to by a UI lobby scene or the game scene.
-signal lobby_connected(peer_id, lobby_info)
-signal lobby_disconnected(peer_id)
+signal lobby_connected(peer_id: int, lobby_info: Dictionary)
+signal lobby_disconnected(peer_id: int)
 signal server_disconnected
-signal lobby_created(code)
+signal lobby_created(code: String)
 
 const DEFAULT_SERVER_IP = "127.0.0.1"  # IPv4 localhost
 
