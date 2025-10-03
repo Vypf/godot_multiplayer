@@ -7,7 +7,12 @@ signal player_left(peer_id)
 signal server_disconnected
 signal server_connected
 
+const SERVER_ID = 1
+
 var max_players := 4
+var players_count:int:
+	get:
+		return multiplayer.get_peers().size() - 1
 var code
 var is_online: bool = false
 var is_server: bool:
@@ -15,46 +20,38 @@ var is_server: bool:
 		return (
 			not multiplayer.multiplayer_peer is OfflineMultiplayerPeer and multiplayer.is_server()
 		)
-var unique_id: String:
-	get:
-		return str(multiplayer.get_unique_id())
 var peer := WebSocketMultiplayerPeer.new()
 
 var _logger: CustomLogger
 
-
 func _ready():
 	_logger = CustomLogger.new("GameInstance")
-
 
 func create_server(port, p_code):
 	code = p_code
 	if is_online:
 		return
-	_logger.info("Creating server on port " + str(port), "create_server")
+	_logger.info("Attempting to create server on port " + str(port), "create_server")
 	var error := peer.create_server(int(port))
 	if error != OK:
 		_logger.error("Failed to create server: " + str(error), "create_server")
 		return error
-	_logger.debug("[IS CONNECTED] " + str(peer.get_connection_status()), "create_server")
 	multiplayer.peer_connected.connect(_on_peer_connected)
 	multiplayer.peer_disconnected.connect(
 		func(peer_id):
 			_logger.info("Peer " + str(peer_id) + " disconnected from the server", "create_server")
 			player_left.emit(peer_id)
 	)
-
 	multiplayer.multiplayer_peer = peer
 
 	is_online = true
 
 
 func _on_peer_connected(peer_id: int) -> void:
-	if peer_id == 1:
+	if peer_id == SERVER_ID:
 		return
-	_logger.debug("PEERS SIZE" + str(multiplayer.get_peers().size() - 1), "_on_peer_connected")
-	if multiplayer.get_peers().size() - 1 >= max_players:
-		_logger.info("Kick peer " + str(peer_id) + " from the server", "_on_peer_connected")
+	if players_count >= max_players:
+		_logger.info("Kick peer " + str(peer_id) + " because there are too many peers on the server", "_on_peer_connected")
 		multiplayer.multiplayer_peer.disconnect_peer(peer_id, true)
 		return
 	_logger.info("Peer " + str(peer_id) + " connected to the server", "_on_peer_connected")
@@ -64,7 +61,6 @@ func _on_peer_connected(peer_id: int) -> void:
 
 @rpc("any_peer", "reliable")
 func _register_room_code(p_code):
-	_logger.debug("_register_room_code " + p_code, "_register_room_code")
 	code = p_code
 	code_received.emit(code)
 
@@ -85,14 +81,14 @@ func create_client(address = ""):
 			is_online = false
 	)
 	multiplayer.connected_to_server.connect(func(): server_connected.emit())
-	_logger.info("TRY CONNECTING TO: " + address, "create_client")
+	_logger.info("Attempting to connect to server at address: " + address, "create_client")
 	var error = peer.create_client(address)
 	if error:
 		_logger.error("Failed to create client connection: " + str(error), "create_client")
 		return error
 	multiplayer.multiplayer_peer = peer
 
-	_logger.info("IS ONLINE TO: " + address + " " + str(multiplayer), "create_client")
+	_logger.info("Connected to server at address: " + address, "create_client")
 	is_online = true
 
 
@@ -104,8 +100,3 @@ func stop():
 
 	multiplayer.multiplayer_peer = null
 	peer = WebSocketMultiplayerPeer.new()
-
-
-func get_unique_id() -> int:
-	"""Retourne l'ID unique du peer local pour debug"""
-	return multiplayer.get_unique_id()

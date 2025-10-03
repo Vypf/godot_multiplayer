@@ -14,6 +14,7 @@ var lobbies: Dictionary = {}
 @export var game: String
 var lobby_info: Dictionary = {}:
 	set(value):
+		_logger.info("Set lobby info " + str(value), "lobby_info")
 		if not value.is_empty():
 			lobby_info.port = value.port
 			lobby_info.code = value.code
@@ -72,6 +73,7 @@ func _on_client_message_received(message: Variant):
 
 func _on_connected_ok():
 	_logger.info("✅ Client connected to server", "_on_connected_ok")
+	_logger.info("is_lobby: "+str(is_lobby), "_on_connected_ok")
 	if is_lobby:
 		_client.send(JSON.stringify({"type": "register_lobby", "data": lobby_info}))
 	else:
