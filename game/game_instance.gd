@@ -9,10 +9,6 @@ signal server_connected
 
 const SERVER_ID = 1
 
-var max_players := 4
-var players_count:int:
-	get:
-		return multiplayer.get_peers().size() - 1
 var code
 var is_online: bool = false
 var is_server: bool:
@@ -49,10 +45,6 @@ func create_server(port, p_code):
 
 func _on_peer_connected(peer_id: int) -> void:
 	if peer_id == SERVER_ID:
-		return
-	if players_count >= max_players:
-		_logger.info("Kick peer " + str(peer_id) + " because there are too many peers on the server", "_on_peer_connected")
-		multiplayer.multiplayer_peer.disconnect_peer(peer_id, true)
 		return
 	_logger.info("Peer " + str(peer_id) + " connected to the server", "_on_peer_connected")
 	_register_room_code.rpc_id(peer_id, code)

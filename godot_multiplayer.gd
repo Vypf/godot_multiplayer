@@ -10,6 +10,12 @@ const TYPES: Array[Dictionary] = [
 		"icon": ROOT + "/icon.svg"
 	},
 	{
+		"name": "LobbyManager",
+		"base": "Node",
+		"script": ROOT + "/lobby/lobby_manager.gd",
+		"icon": ROOT + "/icon.svg"
+	},
+	{
 		"name": "LobbyServer",
 		"base": "Node",
 		"script": ROOT + "/lobby/LobbyServer.gd",
@@ -19,6 +25,12 @@ const TYPES: Array[Dictionary] = [
 		"name": "GameInstance",
 		"base": "Node",
 		"script": ROOT + "/game_instance/game_instance.gd",
+		"icon": ROOT + "/icon.svg"
+	},
+	{
+		"name": "PlayerSpawner",
+		"base": "Node",
+		"script": ROOT + "/game_instance/player_spawner.gd",
 		"icon": ROOT + "/icon.svg"
 	}
 ]

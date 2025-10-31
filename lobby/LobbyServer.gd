@@ -24,7 +24,6 @@ var _log_folder: String
 # Paths of available games
 var _paths: Dictionary:
 	set(value):
-		print(value.values())
 		for path in value.values():
 			if not (FileAccess.file_exists(path) or DirAccess.dir_exists_absolute(path)):
 				push_error(path + ' does not exist.')
@@ -32,7 +31,6 @@ var _paths: Dictionary:
 		
 var _executable_paths: Dictionary:
 	set(value):
-		print(value.values())
 		for path in value.values():
 			if not (FileAccess.file_exists(path) or DirAccess.dir_exists_absolute(path)):
 				push_error(path + ' does not exist.')
