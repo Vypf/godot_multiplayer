@@ -6,7 +6,7 @@ const TYPES: Array[Dictionary] = [
 	{
 		"name": "LobbyClient",
 		"base": "Node",
-		"script": ROOT + "/lobby/LobbyClient.gd",
+		"script": ROOT + "/lobby/lobby_client.gd",
 		"icon": ROOT + "/icon.svg"
 	},
 	{
@@ -18,7 +18,7 @@ const TYPES: Array[Dictionary] = [
 	{
 		"name": "LobbyServer",
 		"base": "Node",
-		"script": ROOT + "/lobby/LobbyServer.gd",
+		"script": ROOT + "/lobby/lobby_server.gd",
 		"icon": ROOT + "/icon.svg"
 	},
 	{
