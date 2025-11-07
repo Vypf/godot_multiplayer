@@ -1,11 +1,14 @@
-class_name LobbyServer extends Node
+extends Node
+class_name LobbyServer
 
 # Autoload named Lobby
 const DEFAULT_SERVER_IP = "127.0.0.1"  # IPv4 localhost
 const MIN_PORT = 18000
 const MAX_PORT = 19000
 
-var lobbies = {}
+var lobbies: Dictionary = {}
+var clients: Dictionary = {}
+
 var _logger: CustomLogger
 
 var codes: Array[String]:
@@ -18,15 +21,28 @@ var _server: WebSocketServer
 
 # Folder in which logs will be stored
 var _log_folder: String
-# Path to godot project to launch for lobbies
-var _path: String
+# Paths of available games
+var _paths: Dictionary:
+	set(value):
+		for path in value.values():
+			if not (FileAccess.file_exists(path) or DirAccess.dir_exists_absolute(path)):
+				push_error(path + ' does not exist.')
+		_paths = value
+		
+var _executable_paths: Dictionary:
+	set(value):
+		for path in value.values():
+			if not (FileAccess.file_exists(path) or DirAccess.dir_exists_absolute(path)):
+				push_error(path + ' does not exist.')
+		_executable_paths = value
 # Environnement it determines how a lobby should be created
 var _environment: String
 
 
-func _init(path: String = "", log_folder: String = "", environment: String = "development"):
+func _init(paths: Dictionary = {}, executable_paths: Dictionary = {}, log_folder: String = "", environment: String = "development"):
 	_log_folder = log_folder
-	_path = path
+	_paths = paths
+	_executable_paths = executable_paths
 	_environment = environment
 	_logger = CustomLogger.new("LobbyServer")
 
@@ -82,6 +98,44 @@ func _generate_code(banned_codes: Array[String], length: int = 6) -> String:
 	return ""
 
 
+func _build_message(message) -> String:
+	return JSON.stringify(message)
+
+
+func _build_lobby_created_message(code) -> String:
+	return _build_message({"type": "lobby_created", "data": code})
+
+
+func _build_lobby_connected_message(peer_id, lobby_info) -> String:
+	return _build_message(
+		{"type": "lobby_connected", "data": {"peer_id": peer_id, "lobby_info": lobby_info}}
+	)
+
+
+func _filter_dict(dict: Dictionary, callback: Callable) -> Dictionary:
+	var result := {}
+	for key in dict.keys():
+		var value = dict[key]
+		if callback.call(key, value):
+			result[key] = value
+	return result
+
+
+func _get_lobbies_for_game(game: String) -> Dictionary:
+	return _filter_dict(lobbies, func(peer_id, lobby_info): return lobby_info.game == game)
+
+
+func _get_peer_ids_for_game(game: String) -> Array[int]:
+	var result: Array[int]
+	var clients_for_game := _filter_dict(clients, func(peer_id, info): return info.game == game)
+	result.assign(clients_for_game.keys())
+	return result
+
+
+func _build_lobby_updated_message(game) -> String:
+	return _build_message({"type": "lobbies_updated", "data": _get_lobbies_for_game(game)})
+
+
 func _on_server_message_received(peer_id: int, message: String):
 	_logger.debug(
 		"_on_server_message_received (" + str(peer_id) + "): " + message,
@@ -89,23 +143,25 @@ func _on_server_message_received(peer_id: int, message: String):
 	)
 	var parsed_message = JSON.parse_string(message)
 	if parsed_message.type == "create_lobby":
-		var code = _create_lobby()
-		_server.send(peer_id, JSON.stringify({"type": "lobby_created", "data": code}))
+		var game = parsed_message.data.game
+		var code = _create_lobby(game)
+		_server.send(peer_id, _build_lobby_created_message(code))
 	elif parsed_message.type == "register_lobby":
 		lobbies[peer_id] = parsed_message.data
-		_server.send(0, JSON.stringify({"type": "lobbies_updated", "data": lobbies}))
-		_server.send(
-			0,
-			JSON.stringify(
-				{
-					"type": "lobby_connected",
-					"data": {"peer_id": peer_id, "lobby_info": parsed_message.data}
-				}
-			)
-		)
+
+		var game = lobbies[peer_id].game
+		var peer_ids := _get_peer_ids_for_game(game)
+
+		_server.broadcast(peer_ids, _build_lobby_updated_message(game))
+		_server.broadcast(peer_ids, _build_lobby_connected_message(peer_id, parsed_message.data))
+	elif parsed_message.type == "register_client":
+		clients[peer_id] = parsed_message.data
+		var game = clients[peer_id].game
+
+		_server.send(peer_id, _build_lobby_updated_message(game))
 
 
-func create(port):
+func start(port):
 	_logger.info("create on port " + str(port), "create")
 	_server = WebSocketServer.new()
 
@@ -138,13 +194,25 @@ func _get_log_path(code: String) -> String:
 		if not DirAccess.dir_exists_absolute(log_folder):
 			var error = DirAccess.make_dir_absolute(log_folder)
 			if error:
-				_logger.error("Can't create logs folder " + log_folder, "_create_lobby")
+				_logger.error(str(error) + ": Can't create logs folder " + log_folder, "_create_lobby")
+				return ""
 		return _join_path([log_folder, code + ".log"])
 	return ""
 
 
-func _get_root() -> String:
-	return _path if not _path.is_empty() else ProjectSettings.globalize_path("res://")
+func _get_root(game) -> String:
+	return (
+		_paths[game]
+		if not _paths.is_empty() and _paths.has(game)
+		else ProjectSettings.globalize_path("res://")
+	)
+
+func _get_executable_path(game) -> String:
+	return (
+		_executable_paths[game]
+		if not _executable_paths.is_empty() and _executable_paths.has(game)
+		else OS.get_executable_path()
+	)
 
 
 func _get_args(code: String, port: int) -> PackedStringArray:
@@ -159,7 +227,7 @@ func _get_args(code: String, port: int) -> PackedStringArray:
 	)
 
 
-func _add_log_path_to_args(log_path, args) -> void:
+func _add_log_path_to_args(log_path, args) -> PackedStringArray:
 	if not log_path.is_empty():
 		args = (
 			args
@@ -170,9 +238,10 @@ func _add_log_path_to_args(log_path, args) -> void:
 				]
 			)
 		)
+	return args
 
 
-func _add_root_to_args(root, args) -> void:
+func _add_root_to_args(root, args) -> PackedStringArray:
 	if not root.is_empty():
 		args = (
 			args
@@ -183,31 +252,34 @@ func _add_root_to_args(root, args) -> void:
 				]
 			)
 		)
+	return args
 
 
-func _create_lobby():
+func _create_lobby(game: String):
 	_logger.info("Creating new lobby with auto-generated code", "_create_lobby")
 	var code := _generate_code(codes)
 	var port := _find_free_port_in_range(MIN_PORT, MAX_PORT)
-	var root := _get_root()
+	var root := _get_root(game)
 	var log_path := _get_log_path(code)
 	var args := _get_args(code, port)
+	var executable_path := _get_executable_path(game)
 
-	_add_log_path_to_args(log_path, args)
+	args = _add_log_path_to_args(log_path, args)
 
 	if _environment == "production":
 		_logger.debug("Args: " + str(args), "_create_lobby")
 		OS.create_process(root, args)
 	else:
-		_add_root_to_args(root, args)
+		args = _add_root_to_args(root, args)
 		_logger.debug("Args: " + str(args), "_create_lobby")
-		OS.create_instance(args)
+		var pId = OS.create_process(executable_path, args)
+		print(str(pId) + ": " + str(OS.is_process_running(pId)))
 	return code
 
 
 func _on_client_connected(id):
 	_logger.info("peer connected " + str(id), "_on_client_connected")
-	_server.send(id, JSON.stringify({"type": "lobbies_updated", "data": lobbies}))
+	# _server.send(id, JSON.stringify({"type": "lobbies_updated", "data": lobbies}))
 
 
 func _on_client_disconnected(id):
@@ -216,6 +288,8 @@ func _on_client_disconnected(id):
 		lobbies.erase(id)
 		_server.send(0, JSON.stringify({"type": "lobby_disconnected", "data": id}))
 		_server.send(0, JSON.stringify({"type": "lobbies_updated", "data": lobbies}))
+	elif clients.has(id):
+		clients.erase(id)
 
 
 func _process(delta):

@@ -45,6 +45,16 @@ func stop() -> void:
 	peers.clear()
 
 
+func broadcast(peer_ids: Array[int], message: String) -> int:
+	var type := typeof(message)
+	for id: int in peer_ids:
+		if type == TYPE_STRING:
+			peers[id].send_text(message)
+		else:
+			peers[id].put_packet(message)
+	return OK
+
+
 func send(peer_id: int, message: String) -> int:
 	var type := typeof(message)
 	if peer_id <= 0:

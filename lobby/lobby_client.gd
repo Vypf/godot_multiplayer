@@ -1,15 +1,25 @@
-class_name LobbyClient extends Node
+extends Node
+class_name LobbyClient
 
 # These signals can be connected to by a UI lobby scene or the game scene.
-signal lobby_connected(peer_id, lobby_info)
-signal lobby_disconnected(peer_id)
+signal lobby_connected(peer_id: String, lobby_info: Dictionary)
+signal lobby_disconnected(peer_id: String)
 signal server_disconnected
-signal lobby_created(code)
+signal lobby_created(code: String)
 
 const DEFAULT_SERVER_IP = "127.0.0.1"  # IPv4 localhost
 
-var lobbies = {}
-var lobby_info = {}
+var lobbies: Dictionary = {}
+
+@export var game: String
+var lobby_info: Dictionary = {}:
+	set(value):
+		_logger.info("Set lobby info " + str(value), "lobby_info")
+		if not value.is_empty():
+			lobby_info.port = value.port
+			lobby_info.code = value.code
+			lobby_info.pId = value.pId
+			lobby_info.game = game
 
 var is_lobby: bool:
 	get:
@@ -25,7 +35,7 @@ func _init():
 
 func create():
 	if _client:
-		_client.send(JSON.stringify({"type": "create_lobby"}))
+		_client.send(JSON.stringify({"type": "create_lobby", "data": {"game": game}}))
 
 
 func stop():
@@ -63,8 +73,11 @@ func _on_client_message_received(message: Variant):
 
 func _on_connected_ok():
 	_logger.info("✅ Client connected to server", "_on_connected_ok")
+	_logger.info("is_lobby: "+str(is_lobby), "_on_connected_ok")
 	if is_lobby:
 		_client.send(JSON.stringify({"type": "register_lobby", "data": lobby_info}))
+	else:
+		_client.send(JSON.stringify({"type": "register_client", "data": {"game": game}}))
 
 
 func _on_server_disconnected():
