@@ -19,31 +19,11 @@ var codes: Array[String]:
 
 var _server: WebSocketServer
 
-# Folder in which logs will be stored
-var _log_folder: String
-# Paths of available games
-var _paths: Dictionary:
-	set(value):
-		for path in value.values():
-			if not (FileAccess.file_exists(path) or DirAccess.dir_exists_absolute(path)):
-				push_error(path + ' does not exist.')
-		_paths = value
-		
-var _executable_paths: Dictionary:
-	set(value):
-		for path in value.values():
-			if not (FileAccess.file_exists(path) or DirAccess.dir_exists_absolute(path)):
-				push_error(path + ' does not exist.')
-		_executable_paths = value
-# Environnement it determines how a lobby should be created
-var _environment: String
+# Instance manager for spawning/deleting game instances
+var _instance_manager
 
 
-func _init(paths: Dictionary = {}, executable_paths: Dictionary = {}, log_folder: String = "", environment: String = "development"):
-	_log_folder = log_folder
-	_paths = paths
-	_executable_paths = executable_paths
-	_environment = environment
+func _init():
 	_logger = CustomLogger.new("LobbyServer")
 
 
@@ -181,99 +161,18 @@ func stop():
 		_server.stop()
 
 
-func _join_path(parts: Array) -> String:
-	var clean_parts := []
-	for part: String in parts:
-		clean_parts.append(part)
-	return "/".join(clean_parts)
-
-
-func _get_log_path(code: String) -> String:
-	if not _log_folder.is_empty():
-		var log_folder = _log_folder
-		if not DirAccess.dir_exists_absolute(log_folder):
-			var error = DirAccess.make_dir_absolute(log_folder)
-			if error:
-				_logger.error(str(error) + ": Can't create logs folder " + log_folder, "_create_lobby")
-				return ""
-		return _join_path([log_folder, code + ".log"])
-	return ""
-
-
-func _get_root(game) -> String:
-	return (
-		_paths[game]
-		if not _paths.is_empty() and _paths.has(game)
-		else ProjectSettings.globalize_path("res://")
-	)
-
-func _get_executable_path(game) -> String:
-	return (
-		_executable_paths[game]
-		if not _executable_paths.is_empty() and _executable_paths.has(game)
-		else OS.get_executable_path()
-	)
-
-
-func _get_args(code: String, port: int) -> PackedStringArray:
-	return PackedStringArray(
-		[
-			"--headless",
-			"server_type=room",
-			"environment=" + _environment,
-			"code=" + code,
-			"port=" + str(port)
-		]
-	)
-
-
-func _add_log_path_to_args(log_path, args) -> PackedStringArray:
-	if not log_path.is_empty():
-		args = (
-			args
-			+ PackedStringArray(
-				[
-					"--log-file",
-					log_path,
-				]
-			)
-		)
-	return args
-
-
-func _add_root_to_args(root, args) -> PackedStringArray:
-	if not root.is_empty():
-		args = (
-			args
-			+ PackedStringArray(
-				[
-					"--path",
-					root,
-				]
-			)
-		)
-	return args
-
-
 func _create_lobby(game: String):
 	_logger.info("Creating new lobby with auto-generated code", "_create_lobby")
 	var code := _generate_code(codes)
 	var port := _find_free_port_in_range(MIN_PORT, MAX_PORT)
-	var root := _get_root(game)
-	var log_path := _get_log_path(code)
-	var args := _get_args(code, port)
-	var executable_path := _get_executable_path(game)
 
-	args = _add_log_path_to_args(log_path, args)
-
-	if _environment == "production":
-		_logger.debug("Args: " + str(args), "_create_lobby")
-		OS.create_process(root, args)
+	if _instance_manager:
+		var result = _instance_manager.spawn(game, code, port)
+		if not result.success:
+			_logger.error("Failed to spawn instance: " + result.error, "_create_lobby")
 	else:
-		args = _add_root_to_args(root, args)
-		_logger.debug("Args: " + str(args), "_create_lobby")
-		var pId = OS.create_process(executable_path, args)
-		print(str(pId) + ": " + str(OS.is_process_running(pId)))
+		_logger.error("No instance manager configured", "_create_lobby")
+
 	return code
 
 
