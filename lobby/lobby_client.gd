@@ -2,28 +2,27 @@ extends Node
 class_name LobbyClient
 
 # These signals can be connected to by a UI lobby scene or the game scene.
-signal lobby_connected(peer_id: String, lobby_info: Dictionary)
+signal lobby_connected(peer_id: String, lobby_info: LobbyInfo)
 signal lobby_disconnected(peer_id: String)
 signal server_disconnected
 signal lobby_created(code: String)
 
 const DEFAULT_SERVER_IP = "127.0.0.1"  # IPv4 localhost
 
+## Dictionary of peer_id -> LobbyInfo for all available lobbies
 var lobbies: Dictionary = {}
 
 @export var game: String
-var lobby_info: Dictionary = {}:
+var lobby_info: LobbyInfo = null:
 	set(value):
-		_logger.info("Set lobby info " + str(value), "lobby_info")
-		if not value.is_empty():
-			lobby_info.port = value.port
-			lobby_info.code = value.code
-			lobby_info.pId = value.pId
+		_logger.info("Set lobby info " + (value.to_json() if value else "null"), "lobby_info")
+		if value:
+			lobby_info = value
 			lobby_info.game = game
 
 var is_lobby: bool:
 	get:
-		return not lobby_info.is_empty()
+		return lobby_info != null
 
 var _logger: CustomLogger
 var _client: WebSocketClient
@@ -64,9 +63,12 @@ func _on_client_message_received(message: Variant):
 	if parsed_message.type == "lobby_created":
 		lobby_created.emit(parsed_message.data)
 	elif parsed_message.type == "lobbies_updated":
-		lobbies = parsed_message.data
+		lobbies = {}
+		for peer_id in parsed_message.data:
+			lobbies[peer_id] = LobbyInfo.from_dict(parsed_message.data[peer_id])
 	elif parsed_message.type == "lobby_connected":
-		lobby_connected.emit(parsed_message.data.peer_id, parsed_message.data.lobby_info)
+		var info = LobbyInfo.from_dict(parsed_message.data.lobby_info)
+		lobby_connected.emit(parsed_message.data.peer_id, info)
 	elif parsed_message.type == "lobby_disconnected":
 		lobby_disconnected.emit(parsed_message.data.peer_id)
 
@@ -75,7 +77,7 @@ func _on_connected_ok():
 	_logger.info("✅ Client connected to server", "_on_connected_ok")
 	_logger.info("is_lobby: "+str(is_lobby), "_on_connected_ok")
 	if is_lobby:
-		_client.send(JSON.stringify({"type": "register_lobby", "data": lobby_info}))
+		_client.send(JSON.stringify({"type": "register_lobby", "data": lobby_info.to_dict()}))
 	else:
 		_client.send(JSON.stringify({"type": "register_client", "data": {"game": game}}))
 
