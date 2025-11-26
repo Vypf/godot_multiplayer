@@ -73,7 +73,7 @@ func _on_client_message_received(message: Variant):
 		var info = LobbyInfo.from_dict(parsed_message.data.lobby_info)
 		lobby_connected.emit(parsed_message.data.peer_id, info)
 	elif parsed_message.type == "lobby_disconnected":
-		lobby_disconnected.emit(parsed_message.data.peer_id)
+		lobby_disconnected.emit(str(parsed_message.data))
 
 
 func _on_connected_ok():
