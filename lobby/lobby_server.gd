@@ -8,6 +8,8 @@ const MAX_PORT = 19000
 
 var lobbies: Dictionary = {}
 var clients: Dictionary = {}
+# Maps lobby code -> external port (allocated by Hub, used by clients to connect)
+var _pending_ports: Dictionary = {}
 
 var _logger: CustomLogger
 
@@ -127,13 +129,21 @@ func _on_server_message_received(peer_id: int, message: String):
 		var lobby_info = _create_lobby(game)
 		_server.send(peer_id, _build_lobby_created_message(lobby_info))
 	elif parsed_message.type == "register_lobby":
-		lobbies[peer_id] = parsed_message.data
+		var lobby_data = parsed_message.data
+		var code = lobby_data.code
+
+		# Replace internal port with external port allocated during create_lobby
+		if _pending_ports.has(code):
+			lobby_data.port = _pending_ports[code]
+			_pending_ports.erase(code)
+
+		lobbies[peer_id] = lobby_data
 
 		var game = lobbies[peer_id].game
 		var peer_ids := _get_peer_ids_for_game(game)
 
 		_server.broadcast(peer_ids, _build_lobby_updated_message(game))
-		_server.broadcast(peer_ids, _build_lobby_connected_message(peer_id, parsed_message.data))
+		_server.broadcast(peer_ids, _build_lobby_connected_message(peer_id, lobby_data))
 	elif parsed_message.type == "register_client":
 		clients[peer_id] = parsed_message.data
 		var game = clients[peer_id].game
@@ -173,6 +183,7 @@ func _create_lobby(game: String) -> Dictionary:
 	else:
 		_logger.error("No instance manager configured", "_create_lobby")
 
+	_pending_ports[code] = port
 	return {"code": code, "port": port, "game": game}
 
 
