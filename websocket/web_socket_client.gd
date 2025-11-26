@@ -7,6 +7,8 @@ signal message_received(message: Variant)
 
 @export var handshake_headers: PackedStringArray
 @export var supported_protocols: PackedStringArray
+## Set to false to accept self-signed certificates (for local development)
+@export var verify_ssl: bool = true
 var tls_options: TLSOptions = null
 
 var socket := WebSocketPeer.new()
@@ -16,6 +18,10 @@ var last_state := WebSocketPeer.STATE_CLOSED
 func connect_to_url(url: String) -> int:
 	socket.supported_protocols = supported_protocols
 	socket.handshake_headers = handshake_headers
+
+	# Use unsafe TLS for self-signed certificates if verify_ssl is disabled
+	if url.begins_with("wss://") and not verify_ssl:
+		tls_options = TLSOptions.client_unsafe()
 
 	var err := socket.connect_to_url(url, tls_options)
 	if err != OK:
