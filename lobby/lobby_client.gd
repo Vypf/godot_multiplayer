@@ -6,6 +6,7 @@ signal lobby_connected(peer_id: String, lobby_info: LobbyInfo)
 signal lobby_disconnected(peer_id: String)
 signal server_disconnected
 signal lobby_created(lobby_info: LobbyInfo)
+signal lobbies_updated
 
 const DEFAULT_SERVER_IP = "127.0.0.1"  # IPv4 localhost
 
@@ -67,6 +68,7 @@ func _on_client_message_received(message: Variant):
 		lobbies = {}
 		for peer_id in parsed_message.data:
 			lobbies[peer_id] = LobbyInfo.from_dict(parsed_message.data[peer_id])
+		lobbies_updated.emit()
 	elif parsed_message.type == "lobby_connected":
 		var info = LobbyInfo.from_dict(parsed_message.data.lobby_info)
 		lobby_connected.emit(parsed_message.data.peer_id, info)
