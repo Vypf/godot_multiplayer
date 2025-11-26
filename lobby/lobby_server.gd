@@ -82,8 +82,8 @@ func _build_message(message) -> String:
 	return JSON.stringify(message)
 
 
-func _build_lobby_created_message(code) -> String:
-	return _build_message({"type": "lobby_created", "data": code})
+func _build_lobby_created_message(lobby_info: Dictionary) -> String:
+	return _build_message({"type": "lobby_created", "data": lobby_info})
 
 
 func _build_lobby_connected_message(peer_id, lobby_info) -> String:
@@ -124,8 +124,8 @@ func _on_server_message_received(peer_id: int, message: String):
 	var parsed_message = JSON.parse_string(message)
 	if parsed_message.type == "create_lobby":
 		var game = parsed_message.data.game
-		var code = _create_lobby(game)
-		_server.send(peer_id, _build_lobby_created_message(code))
+		var lobby_info = _create_lobby(game)
+		_server.send(peer_id, _build_lobby_created_message(lobby_info))
 	elif parsed_message.type == "register_lobby":
 		lobbies[peer_id] = parsed_message.data
 
@@ -161,7 +161,7 @@ func stop():
 		_server.stop()
 
 
-func _create_lobby(game: String):
+func _create_lobby(game: String) -> Dictionary:
 	_logger.info("Creating new lobby with auto-generated code", "_create_lobby")
 	var code := _generate_code(codes)
 	var port := _find_free_port_in_range(MIN_PORT, MAX_PORT)
@@ -173,7 +173,7 @@ func _create_lobby(game: String):
 	else:
 		_logger.error("No instance manager configured", "_create_lobby")
 
-	return code
+	return {"code": code, "port": port, "game": game}
 
 
 func _on_client_connected(id):
