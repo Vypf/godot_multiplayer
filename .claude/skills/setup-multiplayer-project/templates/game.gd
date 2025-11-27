@@ -85,13 +85,19 @@ func _setup_player():
 	lobby_client.join(get_lobby_manager_url())
 
 
+## Called on all clients when the game starts (via RPC from server)
+@rpc("authority", "call_local", "reliable")
+func _on_game_started():
+	hide_screen(waiting_room)
+
+
 func _setup_server():
 	_set_window_title(TYPES.SERVER)
 	hide_screen(online_multiplayer_screen)
 
 	lobby_manager.on_game_start_requested.connect(func(slots):
 		player_spawner.spawn_players(slots)
-		# Ajouter ici la logique de démarrage du niveau si nécessaire
+		_on_game_started.rpc()
 	)
 
 	var port = Config.arguments.get("port", null)
