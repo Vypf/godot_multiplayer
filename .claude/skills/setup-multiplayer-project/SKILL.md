@@ -1,7 +1,7 @@
 ---
 name: setup-multiplayer-project
 description: Configure un nouveau projet Godot avec le système multijoueur complet godot-multiplayer. Crée les fichiers config.gd, local_instance_manager.gd, game.gd, game.tscn, Dockerfile, Dockerfile.web et les workflows CI/CD GitHub Actions. Utiliser quand l'utilisateur veut ajouter le multijoueur à son projet Godot.
-version: "2.0.0"
+version: "1.0.0"
 ---
 
 # Configuration d'un projet Godot avec godot-multiplayer
