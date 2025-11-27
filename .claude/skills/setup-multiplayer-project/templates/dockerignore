@@ -1,0 +1,29 @@
+# Godot generated files
+# IMPORTANT: Exclure .godot/ pour simuler l'environnement CI (pas de cache local)
+# Cela garantit que l'image Docker est identique en local et en CI
+.godot/
+.import/
+*.translation
+
+# Development files
+.git/
+.gitignore
+.gitmodules
+.gitattributes
+
+# Executables
+executables/
+
+# Logs
+logs/
+*.log
+
+# Documentation
+*.md
+
+# Docker files
+Dockerfile
+Dockerfile.web
+.dockerignore
+docker-compose.yml
+nginx.web.conf

@@ -1,0 +1,52 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://game.gd" id="1_game"]
+[ext_resource type="PackedScene" path="res://addons/godot_multiplayer/ui/online_multiplayer_screen.tscn" id="2_lobby"]
+[ext_resource type="PackedScene" path="res://addons/godot_multiplayer/ui/waiting_room.tscn" id="3_waiting"]
+[ext_resource type="Script" path="res://addons/godot_multiplayer/game/game_instance.gd" id="4_instance"]
+[ext_resource type="Script" path="res://addons/godot_multiplayer/lobby/lobby_client.gd" id="5_client"]
+[ext_resource type="Script" path="res://addons/godot_multiplayer/lobby/lobby_manager.gd" id="6_manager"]
+[ext_resource type="Script" path="res://addons/godot_multiplayer/lobby/lobby_server.gd" id="7_server"]
+[ext_resource type="Script" path="res://addons/godot_multiplayer/game/player_spawner.gd" id="8_spawner"]
+
+[node name="Game" type="Node2D"]
+script = ExtResource("1_game")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="OnlineMultiplayerScreen" parent="CanvasLayer" node_paths=PackedStringArray("lobby_client") instance=ExtResource("2_lobby")]
+unique_name_in_owner = true
+lobby_client = NodePath("../../LobbyClient")
+
+[node name="WaitingRoom" parent="CanvasLayer" instance=ExtResource("3_waiting")]
+unique_name_in_owner = true
+visible = false
+
+[node name="GameInstance" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("4_instance")
+
+[node name="LobbyClient" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("5_client")
+game = "{{GAME_NAME}}"
+
+[node name="LobbyManager" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("6_manager")
+
+[node name="LobbyServer" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("7_server")
+
+[node name="Level" type="Node2D" parent="."]
+unique_name_in_owner = true
+
+[node name="PlayerSpawner" type="MultiplayerSpawner" parent="Level"]
+unique_name_in_owner = true
+script = ExtResource("8_spawner")
+player_scene_path = "{{PLAYER_SCENE_PATH}}"
+spawn_root = NodePath("..")
+
+[node name="Camera2D" type="Camera2D" parent="."]
+zoom = Vector2(0.5, 0.5)

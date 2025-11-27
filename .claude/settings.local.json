@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nRefactor skill structure with support files\n\n- Extract templates into separate files (config.gd, game.gd, game.tscn, Dockerfiles, etc.)\n- Extract GitHub Actions workflows into dedicated files\n- Add reference documentation (arguments.md, troubleshooting.md)\n- Fix Dockerfile ARG bug (now properly used in stage 2)\n- Fix game.tscn load_steps count (8 instead of 9)\n- Add allowed-tools to skill frontmatter\n- Update README with installation instructions and skill reference\n- Recommend download installation, submodule as advanced option\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
