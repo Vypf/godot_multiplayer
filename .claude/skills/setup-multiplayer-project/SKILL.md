@@ -232,8 +232,10 @@ git remote get-url origin
 ### 2. Rebuild et redéployer le spawner
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build spawner
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --force-recreate spawner
 ```
+
+> Le `--force-recreate` est nécessaire car Docker ne détecte pas toujours les changements dans `images.json`.
 
 ### 3. Lancer le lobby
 
