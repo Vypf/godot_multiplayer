@@ -1,7 +1,7 @@
 ---
 name: setup-multiplayer-project
-description: Configure un nouveau projet Godot avec le système multijoueur complet godot-multiplayer. Crée les fichiers config.gd, local_instance_manager.gd, game.gd, game.tscn, Dockerfile et le workflow CI/CD GitHub Actions. Utiliser quand l'utilisateur veut ajouter le multijoueur à son projet Godot.
-version: "1.0.0"
+description: Configure un nouveau projet Godot avec le système multijoueur complet godot-multiplayer. Crée les fichiers config.gd, local_instance_manager.gd, game.gd, game.tscn, Dockerfile, Dockerfile.web et les workflows CI/CD GitHub Actions. Utiliser quand l'utilisateur veut ajouter le multijoueur à son projet Godot.
+version: "2.0.0"
 ---
 
 # Configuration d'un projet Godot avec godot-multiplayer
@@ -11,7 +11,8 @@ Ce skill configure automatiquement l'addon godot-multiplayer dans un projet Godo
 - Salle d'attente avec bouton Ready
 - Lancement de partie par l'hôte
 - Support développement local et production Docker
-- CI/CD GitHub Actions pour publier l'image Docker sur ghcr.io
+- CI/CD GitHub Actions pour publier l'image Docker du serveur sur ghcr.io
+- Client web avec déploiement automatique sur GitHub Pages
 
 ## Informations à demander à l'utilisateur
 
@@ -44,15 +45,15 @@ enabled=PackedStringArray("res://addons/godot_multiplayer/plugin.cfg")
 Config="*res://config.gd"
 ```
 
-3. **Configurer server_url avec feature override** - dans la section `[application]` :
+3. **Configurer server_url** - dans la section `[application]` :
 ```ini
 [application]
 
 config/server_url=""
-config/server_url.production="{{URL_SERVEUR}}"
+config/server_url_production="{{URL_SERVEUR}}"
 ```
 
-Cela permet d'avoir `server_url` vide en développement et défini en production via le feature tag.
+**Note importante** : Les feature tag overrides (ex: `config/server_url.web`) ne fonctionnent pas à runtime (bug Godot #101207). On utilise donc deux settings séparés et `OS.has_feature("web")` dans le code pour détecter l'environnement.
 
 ## Étape 3 : Créer config.gd
 
@@ -270,9 +271,12 @@ var type: String:
 
 const LOBBY_PORT = 17018
 
-## Server URL from ProjectSettings, overridden by feature tags in export presets
+## Server URL - in web exports, uses the production URL from ProjectSettings
+## Bug workaround: feature tag overrides don't work at runtime (godotengine/godot#101207)
 var server_url: String:
     get:
+        if OS.has_feature("web"):
+            return ProjectSettings.get_setting("application/config/server_url_production", "")
         return ProjectSettings.get_setting("application/config/server_url", "")
 
 ## Returns true if server_url is configured (via feature tag in export)
@@ -483,7 +487,7 @@ logs/
 CLAUDE.md
 ```
 
-## Étape 9 : Créer le Dockerfile
+## Étape 9 : Créer le Dockerfile (serveur de jeu)
 
 Créer `Dockerfile` à la racine. Adapter `GODOT_VERSION` si nécessaire :
 
@@ -521,8 +525,11 @@ COPY --chown=root:root . /app/
 RUN rm -rf /app/executables /app/logs /app/.git
 RUN mkdir -p /app/logs
 
-# Import des assets Godot (nécessaire pour les textures et ressources)
-RUN /usr/local/bin/godot --headless --path /app --editor --quit-after 2 || true
+# Import des assets Godot - génère .godot/imported/ et .godot/uid_cache.bin
+# IMPORTANT: Utiliser --import au lieu de --editor --quit-after 2
+# car seul --import génère le fichier uid_cache.bin nécessaire au runtime
+# (voir godotengine/godot#107695)
+RUN /usr/local/bin/godot --headless --path /app --import || true
 
 EXPOSE 8080
 
@@ -536,6 +543,9 @@ Créer `.dockerignore` :
 
 ```dockerignore
 # Godot generated files
+# IMPORTANT: Exclure .godot/ pour simuler l'environnement CI (pas de cache local)
+# Cela garantit que l'image Docker est identique en local et en CI
+.godot/
 .import/
 *.translation
 
@@ -557,8 +567,10 @@ logs/
 
 # Docker files
 Dockerfile
+Dockerfile.web
 .dockerignore
 docker-compose.yml
+nginx.web.conf
 ```
 
 ## Étape 11 : Créer le workflow GitHub Actions
@@ -627,13 +639,167 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # IMPORTANT: Désactiver le cache pour que les changements de submodules soient pris en compte
+          no-cache: true
           platforms: linux/amd64
 
       - name: Image digest
         run: echo ${{ steps.meta.outputs.digest }}
 ```
+
+## Étape 12 : Créer Dockerfile.web (client web)
+
+Créer `Dockerfile.web` pour builder le client web avec nginx :
+
+```dockerfile
+# Stage 1: Build web export using godot-ci
+FROM barichello/godot-ci:4.5 AS builder
+
+WORKDIR /game
+COPY . .
+
+# Import assets first (--import génère uid_cache.bin)
+RUN godot --headless --path /game --import || true
+
+# Export web build
+RUN mkdir -p /game/build/web && \
+    godot --headless --verbose --path /game --export-release "Web" /game/build/web/index.html
+
+# Stage 2: Nginx to serve the web build
+FROM nginx:alpine
+
+# Copy nginx config with required headers for Godot
+COPY nginx.web.conf /etc/nginx/conf.d/default.conf
+
+# Copy the web build
+COPY --from=builder /game/build/web /usr/share/nginx/html
+
+EXPOSE 80
+```
+
+## Étape 13 : Créer nginx.web.conf
+
+Créer `nginx.web.conf` avec les headers COOP/COEP requis par Godot 4 :
+
+```nginx
+server {
+    listen 80;
+    server_name localhost;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Required headers for Godot 4 web exports (SharedArrayBuffer support)
+    add_header Cross-Origin-Opener-Policy "same-origin" always;
+    add_header Cross-Origin-Embedder-Policy "require-corp" always;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Proper MIME types for Godot web exports
+    location ~ \.wasm$ {
+        add_header Content-Type application/wasm;
+        add_header Cross-Origin-Opener-Policy "same-origin" always;
+        add_header Cross-Origin-Embedder-Policy "require-corp" always;
+    }
+
+    location ~ \.js$ {
+        add_header Content-Type application/javascript;
+        add_header Cross-Origin-Opener-Policy "same-origin" always;
+        add_header Cross-Origin-Embedder-Policy "require-corp" always;
+    }
+}
+```
+
+## Étape 14 : Créer le workflow GitHub Pages
+
+Créer `.github/workflows/deploy-web.yml` pour déployer automatiquement sur GitHub Pages :
+
+```yaml
+name: Deploy Web Client to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup export templates
+        run: |
+          # GitHub Actions uses /github/home as HOME, but templates are in /root/
+          mkdir -p ~/.local/share/godot/export_templates/4.5.stable
+          cp -r /root/.local/share/godot/export_templates/4.5.stable/* ~/.local/share/godot/export_templates/4.5.stable/
+          ls -la ~/.local/share/godot/export_templates/4.5.stable/ | head -10
+
+      - name: Import assets
+        run: godot --headless --path . --import || true
+
+      - name: Export web build
+        run: |
+          mkdir -p build/web
+          godot --headless --verbose --path . --export-release "Web" build/web/index.html
+
+      - name: Add COOP/COEP headers file
+        run: |
+          cat > build/web/_headers << 'EOF'
+          /*
+            Cross-Origin-Embedder-Policy: require-corp
+            Cross-Origin-Opener-Policy: same-origin
+          EOF
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+```
+
+**Note** : Pour que ce workflow fonctionne, vous devez activer GitHub Pages dans les paramètres du repository :
+1. Aller sur `https://github.com/{user}/{repo}/settings/pages`
+2. Dans **Source**, sélectionner **GitHub Actions**
+
+## Étape 15 : Créer le preset d'export Web
+
+Dans Godot, créer un preset d'export pour le Web :
+1. Ouvrir **Project > Export...**
+2. Cliquer **Add...** et sélectionner **Web**
+3. Nommer le preset exactement **"Web"** (utilisé par les workflows)
+4. Configurer les options selon vos besoins
+
+Cela génère le fichier `export_presets.cfg` qui doit être commité.
 
 ## Commandes de test en développement local
 
@@ -658,9 +824,13 @@ godot --path . environment=development
 | `game.gd` | Script principal orchestrant les 3 modes (PLAYER, SERVER, LOBBY) |
 | `game.tscn` | Scène principale avec tous les composants multiplayer |
 | `.gitignore` | Fichiers à ignorer par Git |
-| `Dockerfile` | Image Docker du serveur de jeu |
+| `Dockerfile` | Image Docker du serveur de jeu headless |
+| `Dockerfile.web` | Image Docker du client web (nginx) |
+| `nginx.web.conf` | Config nginx avec headers COOP/COEP pour Godot 4 |
 | `.dockerignore` | Fichiers à exclure de l'image Docker |
-| `.github/workflows/docker-publish.yml` | CI/CD pour publier l'image sur ghcr.io |
+| `export_presets.cfg` | Presets d'export Godot (généré par l'éditeur) |
+| `.github/workflows/docker-publish.yml` | CI/CD pour publier l'image serveur sur ghcr.io |
+| `.github/workflows/deploy-web.yml` | CI/CD pour déployer le client web sur GitHub Pages |
 
 ## Arguments de configuration
 
@@ -681,7 +851,36 @@ godot --path . environment=development
 
 | Setting | Description | Défaut |
 |---------|-------------|--------|
-| `application/config/server_url` | URL du serveur (vide = dev, défini = prod) | `""` |
-| `application/config/server_url.production` | URL de production (activé via feature tag) | `{{URL_SERVEUR}}` |
+| `application/config/server_url` | URL du serveur en développement | `""` |
+| `application/config/server_url_production` | URL de production (utilisé quand `OS.has_feature("web")`) | `{{URL_SERVEUR}}` |
 
-Pour activer l'URL de production dans un export, ajouter `custom_features="production"` dans `export_presets.cfg`.
+**Note** : Les feature tag overrides (ex: `server_url.web`) ne fonctionnent pas à runtime à cause du bug Godot #101207. Le code utilise `OS.has_feature("web")` pour détecter l'environnement.
+
+## Problèmes connus et solutions
+
+### uid_cache.bin manquant en production
+
+**Symptôme** : Erreurs "Unrecognized UID" au démarrage du serveur Docker.
+
+**Cause** : La commande `--editor --quit-after 2` ne génère pas le fichier `uid_cache.bin`.
+
+**Solution** : Utiliser `--import` dans le Dockerfile :
+```dockerfile
+RUN godot --headless --path /app --import || true
+```
+
+### Image Docker différente en local vs CI
+
+**Symptôme** : L'image fonctionne en local mais pas quand elle est buildée par GitHub Actions.
+
+**Cause** : Le dossier `.godot/` local est copié dans l'image, masquant les différences avec l'environnement CI.
+
+**Solution** : Ajouter `.godot/` dans `.dockerignore` pour simuler l'environnement CI en local.
+
+### Export templates non trouvés dans GitHub Actions
+
+**Symptôme** : "No export template found at the expected path" dans le workflow deploy-web.
+
+**Cause** : GitHub Actions utilise `/github/home/` comme HOME, mais les templates de `barichello/godot-ci` sont dans `/root/`.
+
+**Solution** : Copier les templates vers le bon répertoire (voir étape "Setup export templates" dans le workflow).
