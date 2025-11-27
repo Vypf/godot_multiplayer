@@ -14,8 +14,6 @@ const DEFAULT_SERVER_IP = "127.0.0.1"  # IPv4 localhost
 var lobbies: Dictionary = {}
 
 @export var game: String
-## Set to false to accept self-signed certificates (for local development)
-@export var verify_ssl: bool = true
 var lobby_info: LobbyInfo = null:
 	set(value):
 		_logger.info("Set lobby info " + (value.to_json() if value else "null"), "lobby_info")
@@ -49,7 +47,6 @@ func join(address: String = ""):
 	if address.is_empty():
 		address = DEFAULT_SERVER_IP
 	_client = WebSocketClient.new()
-	_client.verify_ssl = verify_ssl
 
 	_client.connected_to_server.connect(_on_connected_ok)
 	_client.connection_closed.connect(_on_server_disconnected)

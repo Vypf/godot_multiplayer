@@ -11,8 +11,6 @@ const SERVER_ID = 1
 
 var code
 var is_online: bool = false
-## Set to false to accept self-signed certificates (for local development)
-@export var verify_ssl: bool = true
 var is_server: bool:
 	get:
 		return (
@@ -76,13 +74,7 @@ func create_client(address = ""):
 	)
 	multiplayer.connected_to_server.connect(func(): server_connected.emit())
 	_logger.info("Attempting to connect to server at address: " + address, "create_client")
-
-	# Use unsafe TLS for self-signed certificates if verify_ssl is disabled
-	var tls_options: TLSOptions = null
-	if address.begins_with("wss://") and not verify_ssl:
-		tls_options = TLSOptions.client_unsafe()
-
-	var error = peer.create_client(address, tls_options)
+	var error = peer.create_client(address)
 	if error:
 		_logger.error("Failed to create client connection: " + str(error), "create_client")
 		return error
