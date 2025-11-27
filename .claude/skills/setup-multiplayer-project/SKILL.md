@@ -33,7 +33,6 @@ Demander ces informations à l'utilisateur avant de commencer :
 |----------|-------------|---------|
 | `GAME_NAME` | Identifiant unique du jeu (kebab-case) | `space-chicken` |
 | `SERVER_URL` | Domaine de production (sans protocole) | `games.example.com` |
-| `PLAYER_SCENE_PATH` | Chemin vers la scène joueur | `res://player/player.tscn` |
 
 ## Étapes d'installation
 
@@ -90,15 +89,38 @@ Copier le template de scène :
 
 **Remplacements requis dans game.tscn** :
 - `{{GAME_NAME}}` → Nom du jeu (ex: `space-chicken`)
-- `{{PLAYER_SCENE_PATH}}` → Chemin de la scène joueur (ex: `res://player/player.tscn`)
 
-### Étape 4 : Configurer Git
+### Étape 4 : Créer la scène joueur
+
+Créer le dossier `player/` et copier les templates :
+
+1. **player.gd** - Script du joueur avec setup d'autorité
+   - Source : `templates/player.gd`
+   - Destination : `res://player/player.gd`
+
+2. **player_input.gd** - Script d'input à personnaliser
+   - Source : `templates/player_input.gd`
+   - Destination : `res://player/player_input.gd`
+
+3. **player.tscn** - Scène joueur avec structure multiplayer
+   - Source : `templates/player.tscn`
+   - Destination : `res://player/player.tscn`
+
+La scène inclut :
+- `Player` (Node2D) - Autorité serveur, synchronise `position`
+- `Input` (Node) - Autorité joueur, à étendre pour synchroniser les inputs
+
+L'utilisateur doit ensuite :
+1. Ajouter ses propriétés d'input dans `player_input.gd`
+2. Configurer le `MultiplayerSynchronizer` de l'Input pour synchroniser ces propriétés
+
+### Étape 5 : Configurer Git
 
 1. Copier `.gitignore` :
    - Source : `templates/gitignore`
    - Destination : `.gitignore` (à la racine)
 
-### Étape 5 : Configurer Docker
+### Étape 6 : Configurer Docker
 
 1. **Dockerfile** (serveur de jeu headless) :
    - Source : `templates/Dockerfile`
@@ -116,7 +138,7 @@ Copier le template de scène :
    - Source : `templates/dockerignore`
    - Destination : `.dockerignore`
 
-### Étape 6 : Configurer GitHub Actions
+### Étape 7 : Configurer GitHub Actions
 
 1. Créer le dossier `.github/workflows/`
 
@@ -128,7 +150,7 @@ Copier le template de scène :
    - Source : `workflows/deploy-web.yml`
    - Destination : `.github/workflows/deploy-web.yml`
 
-### Étape 7 : Configurer le preset d'export Web
+### Étape 8 : Configurer le preset d'export Web
 
 Copier le template de preset d'export :
 - Source : `templates/export_presets.cfg`
@@ -147,6 +169,9 @@ Ce preset configure l'export Web avec :
 | `local_instance_manager.gd` | Gestionnaire de spawn des serveurs locaux |
 | `game.gd` | Script principal orchestrant les 3 modes |
 | `game.tscn` | Scène principale avec composants multiplayer |
+| `player/player.gd` | Script joueur avec setup d'autorité multiplayer |
+| `player/player_input.gd` | Script d'input à personnaliser |
+| `player/player.tscn` | Scène joueur avec MultiplayerSynchronizers |
 | `.gitignore` | Fichiers à ignorer par Git |
 | `Dockerfile` | Image Docker du serveur headless |
 | `Dockerfile.web` | Image Docker du client web (nginx) |
@@ -172,6 +197,34 @@ godot --headless server_type=lobby environment=development \
 ```bash
 godot --path . environment=development
 ```
+
+## Déploiement en production avec Vypf/lobby
+
+Si vous utilisez [github.com/Vypf/lobby](https://github.com/Vypf/lobby) comme infrastructure de lobby en production :
+
+### 1. Ajouter le jeu dans `images.json`
+
+Dans le repository `lobby`, modifier `images.json` pour ajouter votre jeu :
+
+```json
+{
+  "GAME_NAME": {
+    "development": "GAME_NAME:dev",
+    "production": "ghcr.io/VOTRE_USERNAME/GAME_NAME:latest"
+  }
+}
+```
+
+### 2. Rebuild et redéployer le spawner
+
+Après modification de `images.json`, rebuild l'image spawner pour prendre en compte le nouveau jeu :
+
+```bash
+docker compose build spawner
+docker compose up -d spawner
+```
+
+Ou si vous utilisez les images publiées, déclencher le workflow CI/CD du repository lobby.
 
 ## Références
 

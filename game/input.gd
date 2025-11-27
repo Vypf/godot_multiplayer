@@ -1,22 +1,24 @@
 extends Node
 class_name OnlineInput
-
-var direction: Vector2 = Vector2.ZERO
-
-func _process(delta):
-	if not is_multiplayer_authority():
-		return
-	
-	var device = Config.arguments.get("use_gamepad", null)
-	if device != null:
-		var deadzone = 0.3
-		direction.x = Input.get_joy_axis(device, JOY_AXIS_LEFT_X)
-		direction.y = Input.get_joy_axis(device, JOY_AXIS_LEFT_Y)
-
-		if direction.length() < deadzone:
-			direction = Vector2.ZERO
-	else:
-		direction = Vector2(
-			Input.get_axis("move_left", "move_right"),
-			Input.get_axis("move_up", "move_down"),
-		)
+## Base class for player input in multiplayer games.
+##
+## This node should be a child of the Player node and will have its authority
+## set to the owning player (peer_id = player node name).
+##
+## Extend this class to define your own input properties and synchronize them
+## using a MultiplayerSynchronizer as a child of this node.
+##
+## Example:
+## [codeblock]
+## extends OnlineInput
+##
+## var direction: Vector2 = Vector2.ZERO
+##
+## func _process(delta):
+##     if not is_multiplayer_authority():
+##         return
+##     direction = Vector2(
+##         Input.get_axis("move_left", "move_right"),
+##         Input.get_axis("move_up", "move_down"),
+##     )
+## [/codeblock]

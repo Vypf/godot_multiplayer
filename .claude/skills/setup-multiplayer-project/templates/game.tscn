@@ -45,7 +45,7 @@ unique_name_in_owner = true
 [node name="PlayerSpawner" type="MultiplayerSpawner" parent="Level"]
 unique_name_in_owner = true
 script = ExtResource("8_spawner")
-player_scene_path = "{{PLAYER_SCENE_PATH}}"
+player_scene_path = "res://player/player.tscn"
 spawn_root = NodePath("..")
 
 [node name="Camera2D" type="Camera2D" parent="."]
