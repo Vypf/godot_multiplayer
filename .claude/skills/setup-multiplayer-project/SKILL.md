@@ -128,13 +128,16 @@ Copier le template de scène :
    - Source : `workflows/deploy-web.yml`
    - Destination : `.github/workflows/deploy-web.yml`
 
-### Étape 7 : Créer le preset d'export Web
+### Étape 7 : Configurer le preset d'export Web
 
-Dans Godot :
-1. Ouvrir **Project > Export...**
-2. Cliquer **Add...** et sélectionner **Web**
-3. Nommer le preset exactement **"Web"** (utilisé par les workflows)
-4. Sauvegarder (génère `export_presets.cfg`)
+Copier le template de preset d'export :
+- Source : `templates/export_presets.cfg`
+- Destination : `export_presets.cfg`
+
+Ce preset configure l'export Web avec :
+- Le feature tag `production` (utilisé pour différencier dev/prod)
+- Les options de compression VRAM pour desktop
+- Le support des threads désactivé (meilleure compatibilité navigateurs)
 
 ## Résumé des fichiers créés
 
@@ -149,7 +152,7 @@ Dans Godot :
 | `Dockerfile.web` | Image Docker du client web (nginx) |
 | `nginx.web.conf` | Config nginx avec headers COOP/COEP |
 | `.dockerignore` | Fichiers à exclure de l'image Docker |
-| `export_presets.cfg` | Presets d'export (généré par Godot) |
+| `export_presets.cfg` | Preset d'export Web avec feature tag production |
 | `.github/workflows/docker-publish.yml` | CI/CD serveur → ghcr.io |
 | `.github/workflows/deploy-web.yml` | CI/CD client → GitHub Pages |
 
