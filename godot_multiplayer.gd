@@ -24,13 +24,13 @@ const TYPES: Array[Dictionary] = [
 	{
 		"name": "GameInstance",
 		"base": "Node",
-		"script": ROOT + "/game_instance/game_instance.gd",
+		"script": ROOT + "/game/game_instance.gd",
 		"icon": ROOT + "/icon.svg"
 	},
 	{
 		"name": "PlayerSpawner",
 		"base": "Node",
-		"script": ROOT + "/game_instance/player_spawner.gd",
+		"script": ROOT + "/game/player_spawner.gd",
 		"icon": ROOT + "/icon.svg"
 	}
 ]
