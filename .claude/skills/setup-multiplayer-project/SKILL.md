@@ -208,16 +208,26 @@ Si vous utilisez [github.com/Vypf/lobby](https://github.com/Vypf/lobby) comme in
 
 ### 1. Ajouter le jeu dans `images.json`
 
-Dans le repository `lobby`, modifier `images.json` pour ajouter votre jeu :
+Dans le repository `lobby`, modifier `images.json` pour ajouter votre jeu.
+
+**Pour déduire le chemin de l'image** : récupérer le owner/repo depuis la remote git du projet :
+```bash
+git remote get-url origin
+# Exemple: https://github.com/frinyvonnick/lunar-lander.git
+# → Owner: frinyvonnick, Repo: lunar-lander
+# → Image: ghcr.io/frinyvonnick/lunar-lander:latest
+```
 
 ```json
 {
   "GAME_NAME": {
     "development": "GAME_NAME:dev",
-    "production": "ghcr.io/VOTRE_USERNAME/GAME_NAME:latest"
+    "production": "ghcr.io/GIT_OWNER/GAME_NAME:latest"
   }
 }
 ```
+
+> **Note** : `GIT_OWNER` correspond au username ou à l'organisation GitHub du repository du jeu (pas du lobby).
 
 ### 2. Rebuild et redéployer le spawner
 
