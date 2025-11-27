@@ -26,32 +26,35 @@ Avant de commencer, demander :
 git submodule add https://github.com/Vypf/godot_multiplayer.git addons/godot_multiplayer
 ```
 
-## Étape 2 : Activer le plugin dans project.godot
+## Étape 2 : Configurer project.godot
 
-Modifier `project.godot` pour ajouter la section `[editor_plugins]` (ou mettre à jour si elle existe) :
+Modifier `project.godot` pour :
 
+1. **Activer le plugin** - ajouter la section `[editor_plugins]` :
 ```ini
 [editor_plugins]
 
 enabled=PackedStringArray("res://addons/godot_multiplayer/plugin.cfg")
 ```
 
-Si d'autres plugins existent déjà, les ajouter à la liste :
-```ini
-enabled=PackedStringArray("res://addons/autre_plugin/plugin.cfg", "res://addons/godot_multiplayer/plugin.cfg")
-```
-
-## Étape 3 : Ajouter l'autoload Config dans project.godot
-
-Dans la section `[autoload]` de `project.godot` (la créer si elle n'existe pas) :
-
+2. **Ajouter l'autoload Config** - dans la section `[autoload]` :
 ```ini
 [autoload]
 
 Config="*res://config.gd"
 ```
 
-## Étape 4 : Créer config.gd
+3. **Configurer server_url avec feature override** - dans la section `[application]` :
+```ini
+[application]
+
+config/server_url=""
+config/server_url.production="{{URL_SERVEUR}}"
+```
+
+Cela permet d'avoir `server_url` vide en développement et défini en production via le feature tag.
+
+## Étape 3 : Créer config.gd
 
 Créer le fichier `config.gd` à la racine du projet :
 
@@ -132,7 +135,7 @@ func _convert_value(raw: String):
     return raw
 ```
 
-## Étape 5 : Créer local_instance_manager.gd
+## Étape 4 : Créer local_instance_manager.gd
 
 Créer le fichier `local_instance_manager.gd` à la racine du projet :
 
@@ -238,9 +241,9 @@ func _add_lobby_url_to_args(args: PackedStringArray) -> PackedStringArray:
     return args
 ```
 
-## Étape 6 : Créer game.gd
+## Étape 5 : Créer game.gd
 
-Créer le fichier `game.gd` à la racine. Remplacer `{{NOM_DU_JEU}}` et `{{URL_SERVEUR}}` par les valeurs fournies par l'utilisateur :
+Créer le fichier `game.gd` à la racine. Remplacer `{{NOM_DU_JEU}}` par le nom du jeu :
 
 ```gdscript
 extends Node2D
@@ -265,16 +268,21 @@ var type: String:
     get:
         return Config.arguments.get("server_type", TYPES.PLAYER)
 
-const DEFAULT_SERVER_URL: String = "{{URL_SERVEUR}}"
 const LOBBY_PORT = 17018
 
+## Server URL from ProjectSettings, overridden by feature tags in export presets
 var server_url: String:
     get:
-        return Config.arguments.get("server_url", DEFAULT_SERVER_URL)
+        return ProjectSettings.get_setting("application/config/server_url", "")
+
+## Returns true if server_url is configured (via feature tag in export)
+var is_production: bool:
+    get:
+        return not server_url.is_empty()
 
 
 func get_game_instance_url(lobby_info: LobbyInfo) -> String:
-    if Config.is_production:
+    if is_production:
         return "wss://" + server_url + "/" + lobby_info.code
     return "ws://localhost:" + str(lobby_info.port)
 
@@ -282,7 +290,7 @@ func get_game_instance_url(lobby_info: LobbyInfo) -> String:
 func get_lobby_manager_url() -> String:
     if Config.arguments.has("lobby_url"):
         return Config.arguments["lobby_url"]
-    if Config.is_production:
+    if is_production:
         return "wss://" + server_url + "/lobby"
     return "ws://localhost:" + str(LOBBY_PORT)
 
@@ -375,7 +383,7 @@ func _set_window_title(title: String):
         window.title = title
 ```
 
-## Étape 7 : Créer game.tscn
+## Étape 6 : Créer game.tscn
 
 Créer le fichier `game.tscn`. Remplacer `{{NOM_DU_JEU}}` et `{{PLAYER_SCENE_PATH}}` :
 
@@ -434,7 +442,7 @@ spawn_root = NodePath("..")
 zoom = Vector2(0.5, 0.5)
 ```
 
-## Étape 8 : Mettre à jour la scène principale dans project.godot
+## Étape 7 : Mettre à jour la scène principale dans project.godot
 
 Dans la section `[application]` de `project.godot`, définir la scène principale :
 
@@ -444,7 +452,7 @@ Dans la section `[application]` de `project.godot`, définir la scène principal
 run/main_scene="res://game.tscn"
 ```
 
-## Étape 9 : Configurer .gitignore
+## Étape 8 : Configurer .gitignore
 
 Créer ou mettre à jour `.gitignore` :
 
@@ -475,7 +483,7 @@ logs/
 CLAUDE.md
 ```
 
-## Étape 10 : Créer le Dockerfile
+## Étape 9 : Créer le Dockerfile
 
 Créer `Dockerfile` à la racine. Adapter `GODOT_VERSION` si nécessaire :
 
@@ -522,7 +530,7 @@ ENTRYPOINT ["/usr/local/bin/godot", "--headless", "--path", "/app"]
 CMD ["server_type=room"]
 ```
 
-## Étape 11 : Créer .dockerignore
+## Étape 10 : Créer .dockerignore
 
 Créer `.dockerignore` :
 
@@ -553,7 +561,7 @@ Dockerfile
 docker-compose.yml
 ```
 
-## Étape 12 : Créer le workflow GitHub Actions
+## Étape 11 : Créer le workflow GitHub Actions
 
 Créer le dossier et fichier `.github/workflows/docker-publish.yml` :
 
@@ -656,14 +664,24 @@ godot --path . environment=development
 
 ## Arguments de configuration
 
+### Arguments en ligne de commande
+
 | Argument | Description | Défaut |
 |----------|-------------|--------|
 | `server_type` | Type d'instance : `PLAYER`, `room`, `lobby` | `PLAYER` |
 | `environment` | `development` ou `production` | `production` |
-| `server_url` | URL du serveur (pour les clients) | Valeur de `DEFAULT_SERVER_URL` |
 | `lobby_url` | URL WebSocket du lobby (pour serveurs Docker) | Déduit de server_url |
 | `port` | Port du serveur de jeu | Requis pour `room` |
 | `code` | Code de la room (ex: ABC123) | Requis pour `room` |
 | `log_folder` | Dossier des logs (pour lobby) | - |
 | `paths` | Chemins des projets par jeu (pour lobby) | - |
 | `executable_paths` | Chemins des exécutables par jeu (pour lobby) | - |
+
+### Configuration via ProjectSettings (project.godot)
+
+| Setting | Description | Défaut |
+|---------|-------------|--------|
+| `application/config/server_url` | URL du serveur (vide = dev, défini = prod) | `""` |
+| `application/config/server_url.production` | URL de production (activé via feature tag) | `{{URL_SERVEUR}}` |
+
+Pour activer l'URL de production dans un export, ajouter `custom_features="production"` dans `export_presets.cfg`.
