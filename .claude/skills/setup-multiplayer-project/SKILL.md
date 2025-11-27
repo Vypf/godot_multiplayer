@@ -181,12 +181,16 @@ Ce preset configure l'export Web avec :
 | `.github/workflows/docker-publish.yml` | CI/CD serveur → ghcr.io |
 | `.github/workflows/deploy-web.yml` | CI/CD client → GitHub Pages |
 
-## Test en développement local
+## Test en développement local (sans Docker)
+
+Mode local où le lobby spawne directement des processus Godot.
 
 ### 1. Lancer le lobby server
 
 ```bash
-godot --headless server_type=lobby environment=development \
+godot --headless -- \
+    server_type=lobby \
+    environment=development \
     --log_folder=./logs \
     --executable_paths GAME_NAME="/chemin/vers/godot" \
     --paths GAME_NAME="/chemin/vers/projet"
@@ -195,12 +199,12 @@ godot --headless server_type=lobby environment=development \
 ### 2. Lancer des clients (2+ fenêtres)
 
 ```bash
-godot --path . environment=development
+godot --path . -- environment=development
 ```
 
-## Déploiement en production avec Vypf/lobby
+## Déploiement avec Vypf/lobby
 
-Si vous utilisez [github.com/Vypf/lobby](https://github.com/Vypf/lobby) comme infrastructure de lobby en production :
+Si vous utilisez [github.com/Vypf/lobby](https://github.com/Vypf/lobby) comme infrastructure de lobby :
 
 ### 1. Ajouter le jeu dans `images.json`
 
@@ -217,14 +221,23 @@ Dans le repository `lobby`, modifier `images.json` pour ajouter votre jeu :
 
 ### 2. Rebuild et redéployer le spawner
 
-Après modification de `images.json`, rebuild l'image spawner pour prendre en compte le nouveau jeu :
-
 ```bash
-docker compose build spawner
-docker compose up -d spawner
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build spawner
 ```
 
-Ou si vous utilisez les images publiées, déclencher le workflow CI/CD du repository lobby.
+### 3. Lancer le lobby
+
+**Production** (utilise les images `production` de `images.json`) :
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+```
+
+**Développement Docker** (utilise les images `development` de `images.json`) :
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+```
+
+> **Important** : En mode `development`, vous devez avoir l'image Docker locale (ex: `lunar-lander:dev`). En mode `production`, l'image est pullée depuis ghcr.io.
 
 ## Références
 
