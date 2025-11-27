@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://addons/godot_multiplayer/ui/player_slot.gd" id="1_v75lr"]
+[ext_resource type="Texture2D" path="res://addons/godot_multiplayer/icon.svg" id="2_icon"]
 
 [node name="PlayerSlot" type="Control"]
 layout_mode = 3
@@ -39,6 +40,7 @@ size_flags_vertical = 3
 unique_name_in_owner = true
 custom_minimum_size = Vector2(64, 64)
 layout_mode = 2
+texture = ExtResource("2_icon")
 
 [node name="CenterContainer2" type="CenterContainer" parent="Panel/MarginContainer/VBoxContainer"]
 custom_minimum_size = Vector2(0, 50)
