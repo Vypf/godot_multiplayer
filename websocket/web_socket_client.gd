@@ -7,6 +7,9 @@ signal message_received(message: Variant)
 
 @export var handshake_headers: PackedStringArray
 @export var supported_protocols: PackedStringArray
+## Interval in seconds for WebSocket ping frames to keep the connection alive.
+## Set to 0 to disable. Default is 30 seconds.
+@export var heartbeat_interval: float = 30.0
 
 var socket := WebSocketPeer.new()
 var last_state := WebSocketPeer.STATE_CLOSED
@@ -15,6 +18,7 @@ var last_state := WebSocketPeer.STATE_CLOSED
 func connect_to_url(url: String) -> int:
 	socket.supported_protocols = supported_protocols
 	socket.handshake_headers = handshake_headers
+	socket.heartbeat_interval = heartbeat_interval
 
 	var err := socket.connect_to_url(url)
 	if err != OK:

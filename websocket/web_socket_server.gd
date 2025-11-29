@@ -8,6 +8,9 @@ signal client_disconnected(peer_id: int)
 @export var handshake_headers := PackedStringArray()
 @export var supported_protocols := PackedStringArray()
 @export var handshake_timout := 3000
+## Interval in seconds for WebSocket ping frames to keep the connection alive.
+## Set to 0 to disable. Default is 30 seconds.
+@export var heartbeat_interval: float = 30.0
 @export var use_tls := false
 @export var tls_cert: X509Certificate
 @export var tls_key: CryptoKey
@@ -95,6 +98,7 @@ func _create_peer() -> WebSocketPeer:
 	var ws := WebSocketPeer.new()
 	ws.supported_protocols = supported_protocols
 	ws.handshake_headers = handshake_headers
+	ws.heartbeat_interval = heartbeat_interval
 	return ws
 
 
