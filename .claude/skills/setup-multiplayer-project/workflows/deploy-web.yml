@@ -50,6 +50,15 @@ jobs:
           /*
             Cross-Origin-Embedder-Policy: require-corp
             Cross-Origin-Opener-Policy: same-origin
+
+          /*.html
+            Cache-Control: no-cache, no-store, must-revalidate
+
+          /*.js
+            Cache-Control: no-cache
+
+          /*.wasm
+            Cache-Control: no-cache
           EOF
 
       - name: Upload artifact

@@ -33,20 +33,23 @@ func _clear_avatars():
 func _handle_stop():
 	_clear_avatars()
 
-func _spawn(id: int):
+func _create_avatar(id: int) -> Node:
 	var avatar = player_scene.instantiate() as Node
 	avatars[id] = avatar
 	avatar.name += " #%d" % id
-	var root = get_node(spawn_root)
-	
 	
 	# Avatar is always owned by server
 	avatar.set_multiplayer_authority(1)
+	
+	return avatar
+	
 
+func _spawn(avatar):
+	var root = get_node(spawn_root)
 	root.add_child(avatar)
 	print("Spawned avatar %s at %s" % [avatar.name, multiplayer.get_unique_id()])
 
-func spawn_players(slots):
+func spawn_players(slots, callback: Callable = Callable()):
 	if not multiplayer.is_server():
 		return
 	_slots = slots
@@ -54,5 +57,10 @@ func spawn_players(slots):
 	var filled_slots = slots.filter(func(slot):
 		return slot.is_ready
 	)
+	var index = 0
 	for slot in filled_slots:
-		_spawn(slot.peer_id)
+		var avatar := _create_avatar(slot.peer_id)
+		_spawn(avatar)
+		if callback.is_valid():
+			callback.call(index, slot, avatar)
+		index += 1
