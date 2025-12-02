@@ -4,6 +4,7 @@ class_name WaitingRoom
 
 @onready var h_box_container = %HBoxContainer
 @onready var start_button: Button = %StartButton
+@onready var code_label: Label = %Code
 
 ## Override this in subclass or set via script to use custom player slot scene
 var player_slot_scene: PackedScene = preload("res://addons/godot_multiplayer/ui/player_slot.tscn")
@@ -11,6 +12,11 @@ var player_slot_scene: PackedScene = preload("res://addons/godot_multiplayer/ui/
 signal on_ready(peer_id: int)
 signal on_start_clicked()
 
+var code: String:
+	set(value):
+		code = value
+		if code_label:
+			code_label.text = code
 var slots: Array[LobbySlot] = []:
 	set(value):
 		slots = value

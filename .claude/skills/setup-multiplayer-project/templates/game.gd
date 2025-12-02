@@ -73,8 +73,9 @@ func _setup_player():
 		waiting_room.slots = slots
 	)
 
-	game_instance.code_received.connect(func(_code):
+	game_instance.code_received.connect(func(code):
 		hide_screen(online_multiplayer_screen)
+		waiting_room.code = code
 		waiting_room.show()
 	)
 
