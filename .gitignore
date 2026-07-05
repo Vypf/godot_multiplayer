@@ -15,3 +15,7 @@ export_credentials.cfg
 data_*/
 mono_crash.*.json
 /android/
+
+# Claude Code local settings — permissions/allowlist propres à une machine,
+# n'ont rien à faire dans un repo public.
+.claude/settings.local.json
